@@ -1,0 +1,52 @@
+[
+  {
+    "question_id": "Q001",
+    "kind": "count",
+    "text": "How many subjects at site S07 discontinued due to an adverse event?"
+  },
+  {
+    "question_id": "Q002",
+    "kind": "count",
+    "text": "How many subjects discontinued due to an adverse event?"
+  },
+  {
+    "question_id": "Q003",
+    "kind": "lookup",
+    "text": "List the laboratory and adverse-event records for 042-S05-003 within 7 days of the WEEK8 visit"
+  },
+  {
+    "question_id": "Q004",
+    "kind": "finding",
+    "text": "Which subjects meet the Hy's law criteria?"
+  },
+  {
+    "question_id": "Q005",
+    "kind": "trap",
+    "text": "Which subjects at site S01 received a wrong dose?"
+  },
+  {
+    "question_id": "Q006",
+    "kind": "finding",
+    "text": "Which subjects received a wrong dose?"
+  },
+  {
+    "question_id": "Q007",
+    "kind": "finding",
+    "text": "Which subjects used a prohibited concomitant medication?"
+  },
+  {
+    "question_id": "Q008",
+    "kind": "finding",
+    "text": "Which adverse events are serious because AESHOSP = Y but were not flagged AESER = Y?"
+  },
+  {
+    "question_id": "Q009",
+    "kind": "lookup",
+    "text": "List the laboratory records for UNKNOWN-S00-000 within 7 days of the WEEK8 visit"
+  },
+  {
+    "question_id": "Q010",
+    "kind": "count",
+    "text": "How many unique people are enrolled?"
+  }
+]
