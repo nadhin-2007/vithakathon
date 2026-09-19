@@ -756,7 +756,7 @@ class Atlas:
             return self._q_dosing_errors
         if "prohibited" in lower:
             return self._q_prohibited
-        if "duplicate" in lower or "enrolled twice" in lower:
+        if any(w in lower for w in ("duplicate", "enrolled twice", "enrolled more than once", "more than once", "double enrollment", "same person")):
             return self._q_duplicates
         if "missing" in lower and ("dose" in lower or "exposure" in lower or "ex " in lower):
             return self._q_missing_exposure
@@ -1409,7 +1409,7 @@ class Atlas:
                 "confidence": 0.87,
                 "steps": 2,
             }
-        if "how many sites" in lower:
+        if "how many sites" in lower or "sites are there" in lower or "number of sites" in lower or "study sites" in lower:
             return {
                 "answer": len([s for s in self.graph.sites if s]),
                 "text": f"{len([s for s in self.graph.sites if s])} site(s).",
