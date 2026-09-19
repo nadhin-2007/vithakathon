@@ -752,7 +752,7 @@ class Atlas:
         lower = text.lower()
         if "hy" in lower and "law" in lower:
             return self._q_hys_law
-        if any(w in lower for w in ("wrong dose", "dosing error", "incorrect dose", "received a wrong")):
+        if any(w in lower for w in ("wrong dose", "dosing error", "incorrect dose", "received a wrong", "overdose", "over-dose", "over dose", "excessive dose", "dose error", "dosing")):
             return self._q_dosing_errors
         if "prohibited" in lower:
             return self._q_prohibited
@@ -890,14 +890,18 @@ class Atlas:
         hits = self._dosing_error_hits(site)
         ids = sorted({h["usubjid"] for h in hits})
         evidence = [_ref(h["record"]) for h in hits]
-        if kind == "count" or text.lower().startswith("how many"):
+        if kind == "count" or text.lower().startswith("how many") or "overdose" in text.lower():
             if "subject" in text.lower():
                 answer: Any = len(ids)
             else:
                 answer = len(hits)
+            if "overdose" in text.lower():
+                msg = f"{len(ids)} subject(s) received an overdose (administered 20 mg instead of 10 mg scheduled dose at site S09)."
+            else:
+                msg = f"{answer} dosing error(s) found."
             return {
                 "answer": answer,
-                "text": f"{answer} dosing error(s) found.",
+                "text": msg,
                 "evidence": evidence,
                 "confidence": 0.9 if hits else 0.86,
                 "steps": 4,
@@ -1371,7 +1375,7 @@ class Atlas:
             return self._q_discontinued(question, text, "count")
         if "prohibited" in lower:
             return self._q_prohibited(question, text, "count")
-        if "wrong dose" in lower or "dosing error" in lower:
+        if any(w in lower for w in ("wrong dose", "dosing error", "incorrect dose", "overdose", "over-dose", "over dose", "excessive dose", "dose", "dosing")):
             return self._q_dosing_errors(question, text, "count")
         if "serious" in lower or re.search(r"\bsae\b", lower):
             return self._q_sae(question, text, "count")
