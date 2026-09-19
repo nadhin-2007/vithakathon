@@ -3,11 +3,11 @@
     "nodes": 29102,
     "edges": 53856,
     "subjects": 241,
-    "ms": 372,
+    "ms": 537,
     "cut": 12,
     "protocol_version": 3
   },
-  "build_s": 0.3728,
+  "build_s": 0.5374,
   "n_questions": 10,
   "evidence_exist_rate": 1.0,
   "time_breaches": 0,
@@ -20,7 +20,7 @@
       "confidence": 0.86,
       "steps_used": 3,
       "tokens_used": 0,
-      "elapsed_s": 0.0029,
+      "elapsed_s": 0.004,
       "evidence_exists": true
     },
     {
@@ -92,7 +92,7 @@
       "confidence": 0.9,
       "steps_used": 3,
       "tokens_used": 0,
-      "elapsed_s": 0.0025,
+      "elapsed_s": 0.0042,
       "evidence_exists": true
     },
     {
@@ -165,7 +165,7 @@
       "confidence": 0.9,
       "steps_used": 4,
       "tokens_used": 0,
-      "elapsed_s": 0.002,
+      "elapsed_s": 0.003,
       "evidence_exists": true
     },
     {
@@ -211,7 +211,7 @@
       "confidence": 0.9,
       "steps_used": 6,
       "tokens_used": 0,
-      "elapsed_s": 0.0703,
+      "elapsed_s": 0.1105,
       "evidence_exists": true
     },
     {
@@ -222,7 +222,7 @@
       "confidence": 0.85,
       "steps_used": 4,
       "tokens_used": 0,
-      "elapsed_s": 0.0022,
+      "elapsed_s": 0.0036,
       "evidence_exists": true
     },
     {
@@ -331,7 +331,7 @@
       "confidence": 0.9,
       "steps_used": 4,
       "tokens_used": 0,
-      "elapsed_s": 0.004,
+      "elapsed_s": 0.0067,
       "evidence_exists": true
     },
     {
@@ -428,7 +428,7 @@
       "confidence": 0.88,
       "steps_used": 5,
       "tokens_used": 0,
-      "elapsed_s": 0.0034,
+      "elapsed_s": 0.0059,
       "evidence_exists": true
     },
     {
@@ -447,7 +447,7 @@
       "confidence": 0.9,
       "steps_used": 3,
       "tokens_used": 0,
-      "elapsed_s": 0.0024,
+      "elapsed_s": 0.0032,
       "evidence_exists": true
     },
     {
@@ -458,7 +458,7 @@
       "confidence": 0.7,
       "steps_used": 2,
       "tokens_used": 0,
-      "elapsed_s": 0.0021,
+      "elapsed_s": 0.0031,
       "evidence_exists": true
     },
     {
@@ -469,7 +469,7 @@
       "confidence": 0.87,
       "steps_used": 2,
       "tokens_used": 0,
-      "elapsed_s": 0.0021,
+      "elapsed_s": 0.0045,
       "evidence_exists": true
     }
   ]
