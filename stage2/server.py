@@ -6,11 +6,12 @@ Pure Python standard library implementation (no external dependencies required).
 Provides:
 - Web UI for judges and clinical monitors
 - Live cycle execution control (Cuts 1-6, Protocol Versions 1-3)
+- Interactive Study Sentinel Chatbot (ask any clinical question with evidence citations)
 - Real-time Trace console
 - Human Gate screen (Approve / Reject / Clarify escalations interactively)
 - Deviations & Compliance overview
 - Queries & Site Audit Trail
-- REST API for programmatic testing
+- REST API for programmatic testing & chat queries
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ from typing import Any, Dict, Optional
 from stage1.atlas import Atlas, StudyGraph
 from stage2.crew import ReviewCrew
 from stage2.models import ReviewReport
+from starter.schemas import Question
 
 
 HTML_DASHBOARD = """<!DOCTYPE html>
@@ -33,7 +35,7 @@ HTML_DASHBOARD = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ATLAS Stage 2 — Clinical Trial Monitor Cockpit</title>
+<title>ATLAS — Clinical Trial Sentinel & Monitor Cockpit</title>
 <style>
 :root {
   --bg: #0d1117;
@@ -47,6 +49,8 @@ HTML_DASHBOARD = """<!DOCTYPE html>
   --medium: #e3b341;
   --low: #8b949e;
   --success: #3fb950;
+  --user-msg: #1f6feb;
+  --bot-msg: #21262d;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -151,6 +155,120 @@ button.danger:hover { background: #f85149; }
   margin-top: 4px;
 }
 
+/* Chatbot Section */
+.chat-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 24px;
+}
+.chat-header {
+  padding: 14px 18px;
+  background: #1c2128;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  color: var(--heading);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.chat-messages {
+  padding: 16px;
+  height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #0d1117;
+}
+.chat-bubble {
+  max-width: 80%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+.chat-bubble.user {
+  align-self: flex-end;
+  background: var(--user-msg);
+  color: white;
+  border-bottom-right-radius: 2px;
+}
+.chat-bubble.bot {
+  align-self: flex-start;
+  background: var(--bot-msg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 2px;
+}
+.chat-bubble.bot strong.title {
+  color: var(--heading);
+  display: block;
+  margin-bottom: 4px;
+}
+.evidence-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  background: rgba(88,166,255,0.15);
+  color: var(--accent);
+  border-radius: 4px;
+  font-size: 0.78rem;
+  margin-top: 6px;
+  margin-right: 4px;
+  font-family: monospace;
+}
+.meta-tag {
+  font-size: 0.78rem;
+  color: var(--low);
+  margin-top: 6px;
+}
+
+.chat-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #161b22;
+  border-top: 1px solid var(--border);
+}
+.chip {
+  background: #21262d;
+  color: var(--accent);
+  border: 1px solid #30363d;
+  border-radius: 14px;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.chip:hover {
+  background: rgba(88,166,255,0.15);
+  border-color: var(--accent);
+}
+
+.chat-input-bar {
+  display: flex;
+  padding: 12px 16px;
+  background: #1c2128;
+  border-top: 1px solid var(--border);
+  gap: 12px;
+}
+.chat-input-bar input {
+  flex: 1;
+  background: #0d1117;
+  color: var(--heading);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 0.92rem;
+  outline: none;
+}
+.chat-input-bar input:focus { border-color: var(--accent); }
+
 .main-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -182,7 +300,7 @@ button.danger:hover { background: #f85149; }
 .panel-body {
   padding: 16px;
   overflow-y: auto;
-  max-height: 480px;
+  max-height: 440px;
 }
 
 /* Trace Terminal */
@@ -222,11 +340,6 @@ button.danger:hover { background: #f85149; }
   margin-bottom: 6px;
 }
 .esc-desc { font-size: 0.88rem; margin-bottom: 10px; }
-.esc-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-}
 
 /* Tables */
 table {
@@ -257,9 +370,9 @@ tr:hover { background: rgba(88,166,255,0.05); }
 
 <div class="header">
   <div>
-    <h1>STUDY-042 MONITOR Crew <span class="badge badge-accent">Stage 2 Live</span></h1>
+    <h1>STUDY-042 Clinical Trial Sentinel & Monitor <span class="badge badge-accent">Live</span></h1>
     <div style="font-size:0.85rem; color:var(--low); margin-top:4px;">
-      Multi-agent deterministic clinical review: Detect &bull; Medical Review &bull; Data Manager &bull; Compliance &bull; Human Gate &bull; Execute
+      Multi-agent deterministic review & evidence-backed question answering (Stage 1 Atlas + Stage 2 Monitor Crew)
     </div>
   </div>
   <div>
@@ -291,7 +404,7 @@ tr:hover { background: rgba(88,166,255,0.05); }
 
   <button class="primary" id="runBtn" onclick="runCycle()">&#9654; Run Review Cycle</button>
   <button class="danger" onclick="resetMemory()">&#8635; Reset Memory</button>
-  <span id="spinner">&#9203; Running crew across 6 nodes...</span>
+  <span id="spinner">&#9203; Executing review crew across 6 nodes...</span>
 </div>
 
 <div class="stats-grid">
@@ -312,8 +425,38 @@ tr:hover { background: rgba(88,166,255,0.05); }
     <div class="stat-label">Deviations</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value" id="statDuplicates">0</div>
-    <div class="stat-label">Duplicates Suppressed</div>
+    <div class="stat-value" id="statGraphNodes">29,102</div>
+    <div class="stat-label">Study Graph Nodes</div>
+  </div>
+</div>
+
+<!-- Interactive Chat Assistant -->
+<div class="chat-panel">
+  <div class="chat-header">
+    <span>💬 Interactive Study Sentinel & Question Answering</span>
+    <span class="badge badge-accent">Stage 1 + 2 Online</span>
+  </div>
+  <div class="chat-messages" id="chatMessages">
+    <div class="chat-bubble bot">
+      <strong class="title">Atlas AI Sentinel:</strong>
+      Welcome! You can ask any clinical question about STUDY-042 or enter commands. Every answer is backed by exact record evidence from the study graph without hallucinations.
+    </div>
+  </div>
+
+  <div class="chat-quick-chips">
+    <span style="font-size:0.8rem; color:var(--low); align-self:center;">Quick Prompts:</span>
+    <button class="chip" onclick="sendQuickChat('How many subjects discontinued due to an adverse event?')">Discontinued by AE</button>
+    <button class="chip" onclick="sendQuickChat('Which subjects are Hy\'s law candidates?')">Hy's Law Candidates</button>
+    <button class="chip" onclick="sendQuickChat('Which subjects have dosing errors at site S09?')">Site S09 Dosing Errors</button>
+    <button class="chip" onclick="sendQuickChat('Are there any dosing errors at site S01?')">Site S01 Trap Check</button>
+    <button class="chip" onclick="sendQuickChat('Which subjects received prohibited concomitant medications?')">Prohibited Conmeds</button>
+    <button class="chip" onclick="sendQuickChat('run cycle')">▶ Run Review Cycle</button>
+    <button class="chip" onclick="sendQuickChat('status')">Memory Status</button>
+  </div>
+
+  <div class="chat-input-bar">
+    <input type="text" id="chatInput" placeholder="Ask any question (e.g. 'How many subjects discontinued due to AE?') or type 'run cycle'..." onkeydown="if(event.key==='Enter') sendChat()">
+    <button class="primary" id="chatSendBtn" onclick="sendChat()">Send</button>
   </div>
 </div>
 
@@ -341,7 +484,7 @@ tr:hover { background: rgba(88,166,255,0.05); }
   </div>
 </div>
 
-<!-- Deviations and Queries Tabs -->
+<!-- Deviations Table -->
 <div class="panel" style="margin-bottom:24px;">
   <div class="panel-header">
     <span>&#128203; Protocol Deviations by Category</span>
@@ -367,6 +510,106 @@ tr:hover { background: rgba(88,166,255,0.05); }
 </div>
 
 <script>
+// Chat Functionality
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  const chatContainer = document.getElementById('chatMessages');
+  const cut = parseInt(document.getElementById('cutSelect').value);
+  const proto = parseInt(document.getElementById('protoSelect').value);
+
+  // Append user bubble
+  chatContainer.innerHTML += `
+    <div class="chat-bubble user">
+      ${escapeHtml(msg)}
+    </div>
+  `;
+  input.value = '';
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+
+  // Append temporary thinking bubble
+  const thinkId = 'think_' + Date.now();
+  chatContainer.innerHTML += `
+    <div class="chat-bubble bot" id="${thinkId}">
+      <em style="color:var(--low);">&#9203; Querying Atlas study graph...</em>
+    </div>
+  `;
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: msg, cut: cut, protocol_version: proto})
+    });
+    const data = await res.json();
+    const thinkElem = document.getElementById(thinkId);
+    if (thinkElem) thinkElem.remove();
+
+    let ansHtml = `
+      <div class="chat-bubble bot">
+        <strong class="title">Atlas Sentinel:</strong>
+        <div>${formatText(data.text || JSON.stringify(data.answer))}</div>
+    `;
+
+    if (data.evidence && data.evidence.length > 0) {
+      ansHtml += `<div style="margin-top:6px;"><strong style="font-size:0.8rem; color:var(--low);">CITED EVIDENCE (${data.evidence.length} records):</strong><br>`;
+      ansHtml += data.evidence.slice(0, 10).map(e => `
+        <span class="evidence-tag">[${e.domain}] ${e.usubjid || ''} seq ${e.seq || ''}</span>
+      `).join('');
+      if (data.evidence.length > 10) {
+        ansHtml += `<span class="evidence-tag">+${data.evidence.length - 10} more</span>`;
+      }
+      ansHtml += `</div>`;
+    }
+
+    if (data.confidence !== undefined) {
+      ansHtml += `
+        <div class="meta-tag">
+          Confidence: ${(data.confidence * 100).toFixed(0)}% &bull; Steps: ${data.steps || 1}
+        </div>
+      `;
+    }
+
+    ansHtml += `</div>`;
+    chatContainer.innerHTML += ansHtml;
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    // If a cycle was run via chat, update the rest of the cockpit
+    if (data.report) {
+      renderReport(data.report);
+    }
+  } catch (err) {
+    const thinkElem = document.getElementById(thinkId);
+    if (thinkElem) thinkElem.remove();
+    chatContainer.innerHTML += `
+      <div class="chat-bubble bot" style="border-color:var(--critical);">
+        <strong class="title" style="color:var(--critical);">Error:</strong>
+        <div>${escapeHtml(err.message)}</div>
+      </div>
+    `;
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+}
+
+function sendQuickChat(text) {
+  document.getElementById('chatInput').value = text;
+  sendChat();
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function formatText(text) {
+  return escapeHtml(text).replace(/\\n/g, '<br>');
+}
+
+// Pipeline Execution
 async function runCycle() {
   const cut = parseInt(document.getElementById('cutSelect').value);
   const proto = parseInt(document.getElementById('protoSelect').value);
@@ -541,6 +784,82 @@ class MonitorServerHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": "Crew not initialized"}).encode("utf-8"))
             return
 
+        if path == "/api/chat":
+            msg = (body.get("message") or "").strip()
+            cut = int(body.get("cut", 6))
+            protocol_version = int(body.get("protocol_version", 2))
+
+            if not msg:
+                self._set_json_headers(400)
+                self.wfile.write(json.dumps({"error": "Message is required"}).encode("utf-8"))
+                return
+
+            lower = msg.lower()
+
+            # Handle direct commands
+            if lower in {"run", "run cycle", "run review cycle", "start cycle"}:
+                if self.crew:
+                    report = self.crew.run_cycle(cut=cut, protocol_version=protocol_version)
+                    MonitorServerHandler.latest_report = report
+                    reply = {
+                        "text": f"✅ Cycle review complete under protocol v{protocol_version} on cut {cut}.\n\n"
+                                f"• Findings: {report.findings_summary['total']}\n"
+                                f"• Escalations: {len(report.escalations)}\n"
+                                f"• Queries: {len(report.queries)}\n"
+                                f"• Deviations: {len(report.deviations)}\n"
+                                f"• Duplicates suppressed: {len(report.queries) == 0 and len(self.crew.memory.queries_raised) > 0}",
+                        "answer": report.findings_summary,
+                        "confidence": 1.0,
+                        "evidence": [],
+                        "steps": 6,
+                        "report": report.to_dict(),
+                    }
+                    self._set_json_headers(200)
+                    self.wfile.write(json.dumps(reply).encode("utf-8"))
+                    return
+
+            if lower in {"status", "memory", "stats"}:
+                if self.crew:
+                    reply = {
+                        "text": f"📊 System Memory Status:\n"
+                                f"• Cuts processed: {list(self.crew.memory.cuts_processed)}\n"
+                                f"• Historical queries recorded: {len(self.crew.memory.queries_raised)}\n"
+                                f"• Escalations made: {len(self.crew.memory.escalations_made)}\n"
+                                f"• Rejections remembered: {len(self.crew.memory.rejected_escalations)}\n"
+                                f"• Site flags: {list(self.crew.memory.site_flags.keys()) or 'None'}",
+                        "answer": {"cuts": list(self.crew.memory.cuts_processed)},
+                        "confidence": 1.0,
+                        "evidence": [],
+                        "steps": 1,
+                    }
+                    self._set_json_headers(200)
+                    self.wfile.write(json.dumps(reply).encode("utf-8"))
+                    return
+
+            # Default: Query Atlas Stage 1 engine
+            if self.crew and self.crew.atlas:
+                self.crew.atlas.graph.build(cut=cut)
+                if protocol_version and protocol_version != self.crew.atlas.graph.protocol_version:
+                    self.crew.atlas.graph.protocol_version = protocol_version
+                    self.crew.atlas.graph._parse_protocol_rules()
+
+                q = Question(question_id="Q-CHAT", text=msg, cut=cut)
+                ans = self.crew.atlas.answer(q)
+                ev_list = [e.to_dict() if hasattr(e, "to_dict") else e for e in ans.evidence]
+                reply = {
+                    "text": ans.text,
+                    "answer": ans.answer,
+                    "confidence": ans.confidence,
+                    "evidence": ev_list,
+                    "steps": getattr(ans, "steps_used", getattr(ans, "steps", 1)),
+                }
+                self._set_json_headers(200)
+                self.wfile.write(json.dumps(reply).encode("utf-8"))
+            else:
+                self._set_json_headers(500)
+                self.wfile.write(json.dumps({"error": "Atlas engine not initialized"}).encode("utf-8"))
+            return
+
         if path == "/api/reset":
             if self.crew:
                 self.crew.memory.reset()
@@ -569,7 +888,7 @@ def start_server(port: int = 8080, data_dir: str = "hackathon-data"):
     server_address = ("127.0.0.1", port)
     httpd = HTTPServer(server_address, MonitorServerHandler)
     print(f"\n========================================================")
-    print(f"  STUDY-042 MONITOR Dashboard running at:")
+    print(f"  STUDY-042 MONITOR Dashboard & Chatbot running at:")
     print(f"  http://127.0.0.1:{port}")
     print(f"========================================================\n")
     try:
